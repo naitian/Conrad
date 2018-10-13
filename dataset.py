@@ -16,7 +16,7 @@ from preprocess import pipe, get_stopwords
 VOCAB_SIZE = 28648
 
 
-def get_pandas_df(all_csv=False):
+def get_pandas_df(all_csv=True):
     """Returns dataframe with all files
     :returns: TODO
 
@@ -77,8 +77,10 @@ def extract_ttf(tokens_df):
             ttf[token] += 1
     return ttf
 
-def filter_ttf(ttf, threshold = 4):
+
+def filter_ttf(ttf, threshold=4):
     return dict([(term, freq) for term, freq in ttf.items() if freq >= threshold])
+
 
 def create_vocab_to_idx_map(ttf):
     vocab_dict = {}
@@ -123,9 +125,9 @@ def sentiment(df, use_cached=True):
             sentiment_dicts = pickle.load(infile)
             return sentiment_dicts
     vader = SentimentIntensityAnalyzer()
-    df['sentiment']=df['message'].apply(vader.polarity_scores)
+    df['sentiment'] = df['message'].apply(vader.polarity_scores)
     sentiment_dicts = df.set_index(['status_id'])['sentiment'].to_dict()
-    with open('./cache/_cached_sentiment_dicts.pkl','wb') as outfile:
+    with open('./cache/_cached_sentiment_dicts.pkl', 'wb') as outfile:
         pickle.dump(sentiment_dicts, outfile)
     return sentiment_dicts
 
