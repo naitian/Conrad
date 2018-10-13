@@ -1,12 +1,20 @@
 import glob
 import os
-import pandas as pd
 import pickle
 import sys
 from time import time
+from collections import OrderedDict
+
+import pandas as pd
+import numpy as np
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from sklearn.feature_extraction import DictVectorizer
 
 from preprocess import pipe, get_stopwords
+
+
+VOCAB_SIZE = 28648
+
 
 def get_pandas_df(all_csv=False):
     """Returns dataframe with all files
@@ -72,11 +80,12 @@ def extract_ttf(tokens_df):
 def filter_ttf(ttf, threshold = 4):
     return dict([(term, freq) for term, freq in ttf.items() if freq >= threshold])
 
-def create_vocab_dict_from_ttf(ttf):
+def create_vocab_to_idx_map(ttf):
     vocab_dict = {}
-    for key in ttf:
-        vocab_dict[key] = 0
+    for i, key in enumerate(ttf):
+        vocab_dict[key] = i
     return vocab_dict
+
 
 def one_hot_encode(tokens_df, ttf, use_cached=True):
     if use_cached and os.path.isfile('./cache/_cached_one_hot_encoded.pkl'):
@@ -93,6 +102,21 @@ def one_hot_encode(tokens_df, ttf, use_cached=True):
         pickle.dump(tokens_one_hot, outfile)
     return tokens_one_hot
 
+
+def get_crude_sentence_vector(sentence, vocab_dict):
+    """ Get sentence vector for 1 sentence
+
+    :tokens_df: list of words in sentence
+    :vocab_dict: map from word to index
+    """
+    vec = np.zeros(VOCAB_SIZE)
+    for word in sentence:
+        word = word.encode('ascii', 'ignore').decode('utf-8')
+        if word in vocab_dict:
+            vec[vocab_dict[word]] += 1
+    return vec
+
+
 def sentiment(df, use_cached=True):
     if use_cached and os.path.isfile('./cache/_cached_sentiment_dicts.pkl'):
         with open('./cache/_cached_sentiment_dicts.pkl','rb') as infile:
@@ -104,8 +128,9 @@ def sentiment(df, use_cached=True):
     with open('./cache/_cached_sentiment_dicts.pkl','wb') as outfile:
         pickle.dump(sentiment_dicts, outfile)
     return sentiment_dicts
-    
-def main():
+
+
+def create_samples():
     # Get Facebook posts data frame
     df = get_pandas_df()
     df = prepare(df)
@@ -114,12 +139,13 @@ def main():
     tokens_df = extract_bag_of_words(df)
     ttf = extract_ttf(tokens_df)
     ttf = filter_ttf(ttf, threshold=4)
-    vocab_dict = create_vocab_dict_from_ttf(ttf)
-    tokens_one_hot = one_hot_encode(tokens_df, ttf, vocab_dict)
+    vocab_dict = create_vocab_to_idx_map(ttf)
+    print(len(vocab_dict))
 
-    print(tokens_one_hot)
-    
     # Get sentiment dictionaries
     sentiment_dicts = sentiment(df)
-    
-main()
+
+    one_hotted_dict = {
+        status_id: get_crude_sentence_vector(sentence, vocab_dict) for (status_id, sentence) in tokens_df.items()
+    }
+    print(one_hotted_dict)
