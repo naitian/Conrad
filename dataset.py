@@ -38,17 +38,17 @@ def prepare(df, cat=False):
     return res
 
 
-def extract_bag_of_words(df):
+def extract_bag_of_words(df, use_cached=True):
+    if use_cached:
+        with open('_cached_bag_of_words.pkl', 'rb') as infile:
+            tokens = pickle.load(infile)
+            return tokens
     stopwords = get_stopwords()
     tokens = {}
     for n in range(df.shape[0]):
         if not n % 1000:
             print(n)
         tokens[df.iloc[n]['status_id']] = pipe(df.iloc[n]['message'], stopwords)
+    with open('_cached_bag_of_words.pkl', 'wb') as outfile:
+        pickle.dump(tokens, outfile)
     return tokens
-
-start = time()
-tokens = extract_bag_of_words(prepare(get_pandas_df()))
-with open('processed.pkl', 'wb') as outfile:
-    pickle.dump(tokens, outfile)
-print(time() - start)
