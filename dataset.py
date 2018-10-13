@@ -1,6 +1,9 @@
 import glob
 import pandas as pd
+import pickle
+from time import time
 
+from preprocess import pipe, get_stopwords
 
 def get_pandas_df(all_csv=False):
     """Returns dataframe with all files
@@ -23,7 +26,7 @@ def get_pandas_df(all_csv=False):
     return frame
 
 
-def preprocess(df, cat=False):
+def prepare(df, cat=False):
     res = df.dropna(subset=['status_message'])
     res = res.drop_duplicates(subset=['status_id'])
     res['link_name'] = res['link_name'].fillna('')
@@ -33,3 +36,19 @@ def preprocess(df, cat=False):
     res = res[res['status_message'].str.len() < 1000]
     res = res[res['num_reactions'] - res['num_likes'] > 11]
     return res
+
+
+def extract_bag_of_words(df):
+    stopwords = get_stopwords()
+    tokens = {}
+    for n in range(df.shape[0]):
+        if not n % 1000:
+            print(n)
+        tokens[df.iloc[n]['status_id']] = pipe(df.iloc[n]['message'], stopwords)
+    return tokens
+
+start = time()
+tokens = extract_bag_of_words(prepare(get_pandas_df()))
+with open('processed.pkl', 'wb') as outfile:
+    pickle.dump(tokens, outfile)
+print(time() - start)
