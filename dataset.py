@@ -4,6 +4,7 @@ import pandas as pd
 import pickle
 import sys
 from time import time
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
 from preprocess import pipe, get_stopwords
 
@@ -92,6 +93,18 @@ def one_hot_encode(tokens_df, ttf, use_cached=True):
         pickle.dump(tokens_one_hot, outfile)
     return tokens_one_hot
 
+def sentiment(df, use_cached=True):
+    if use_cached and os.path.isfile('./cache/_cached_sentiment_dicts.pkl'):
+        with open('./cache/_cached_sentiment_dicts.pkl','rb') as infile:
+            sentiment_dicts = pickle.load(infile)
+            return sentiment_dicts
+    vader = SentimentIntensityAnalyzer()
+    df['sentiment']=df['message'].apply(vader.polarity_scores)
+    sentiment_dicts = df.set_index(['status_id'])['sentiment'].to_dict()
+    with open('./cache/_cached_sentiment_dicts.pkl','wb') as outfile:
+        pickle.dump(sentiment_dicts, outfile)
+    return sentiment_dicts
+    
 def main():
     # Get Facebook posts data frame
     df = get_pandas_df()
@@ -105,4 +118,8 @@ def main():
     tokens_one_hot = one_hot_encode(tokens_df, ttf, vocab_dict)
 
     print(tokens_one_hot)
+    
+    # Get sentiment dictionaries
+    sentiment_dicts = sentiment(df)
+    
 main()
