@@ -1,0 +1,22 @@
+{
+    "name": "Conrad",
+    "version": "1.0",
+    "description": "The CONsequence eRADicator",
+    "permissions": [
+        "activeTab"
+    ],
+    "content_scripts": [
+        {
+            "matches": ["*://*.facebook.com/*"],
+            "css": ["styles.css"],
+            "js": ["underscore-min.js", "contentscript.js"]
+        }
+    ],
+    "icons": {
+        "16": "img/icon_16x16.png",
+        "32": "img/icon_32x32.png",
+        "48": "img/icon_48x48.png",
+        "128": "img/icon_128x128.png"
+    },
+    "manifest_version": 2
+}
