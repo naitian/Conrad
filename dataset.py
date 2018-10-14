@@ -120,7 +120,6 @@ def get_crude_sentence_vector(sentence, vocab_dict):
             vec[vocab_dict[word]] += 1
     return vec
 
-
 def sentiment(df, use_cached=True):
     if use_cached and os.path.isfile('./cache/_cached_sentiment_dicts.pkl'):
         with open('./cache/_cached_sentiment_dicts.pkl', 'rb') as infile:
@@ -133,7 +132,15 @@ def sentiment(df, use_cached=True):
         pickle.dump(sentiment_dicts, outfile)
     return sentiment_dicts
 
-
+def one_hot(df, key):
+    """ Get one hot encoding for given key
+    
+    :key: column in df to encode
+    """
+    one_hot_encoding_of_key = pd.get_dummies(df[key],drop_first=True).join(df.status_id).set_index('status_id')
+    one_hot_encoding_of_key['onehot']=one_hot_encoding_of_key.values.tolist()
+    return one_hot_encoding_of_key['onehot'].to_dict()
+    
 def sentence_vector(df, use_cached=True):
     if use_cached and os.path.isfile('./cache/_cached_sentence_vectors.pkl'):
         with open('./cache/_cached_sentence_vectors.pkl', 'rb') as infile:
@@ -146,7 +153,6 @@ def sentence_vector(df, use_cached=True):
         pickle.dump(vectors, outfile)
     return vectors
 
-
 def reaction(df, use_cached=True):
     if use_cached and os.path.isfile('./cache/_cached_reaction.pkl'):
         with open('./cache/_cached_reaction.pkl', 'rb') as infile:
@@ -156,6 +162,16 @@ def reaction(df, use_cached=True):
     with open('./cache/_cached_reaction.pkl', 'wb') as outfile:
         pickle.dump(vectors, outfile)
     return vectors
+
+
+def one_hot(df, key):
+    """ Get one hot encoding for given key
+    
+    :key: column in df to encode
+    """
+    one_hot_encoding_of_key = pd.get_dummies(df[key],drop_first=True).join(df.status_id).set_index('status_id')
+    one_hot_encoding_of_key['onehot']=one_hot_encoding_of_key.values.tolist()
+    return one_hot_encoding_of_key['onehot'].to_dict()
 
 
 def create_samples(n, batch_size=50, use_cache=True, prepared=None):
@@ -179,6 +195,8 @@ def create_samples(n, batch_size=50, use_cache=True, prepared=None):
     else:
         df = prepared
     s = sentiment(df, use_cache)
+    type_dict = one_hot(df, 'status_type')
+    source_dict = one_hot(df, 'source')
     v = sentence_vector(df, use_cache)
     r = reaction(df, use_cache)
 
@@ -191,3 +209,33 @@ def create_samples(n, batch_size=50, use_cache=True, prepared=None):
         X[i] = in_vector
         y[i] = np.array(r[sid], dtype=np.int64)
     return X, y
+
+def create_samples():
+    # Get Facebook posts data frame
+    df = get_pandas_df()
+    df = prepare(df)
+
+    # Create one-hot bag of words structure
+    #tokens_df = extract_bag_of_words(df)
+    #ttf = extract_ttf(tokens_df)
+    #ttf = filter_ttf(ttf, threshold=4)
+    #vocab_dict = create_vocab_to_idx_map(ttf)
+    #print(len(vocab_dict))
+
+    print('get dictionaries')
+    print(df.columns.values)
+    # Get dictionaries
+    #sentiment_dict = sentiment(df, use_cached=False)
+    type_dict = one_hot(df, 'status_type')
+    source_dict = one_hot(df, 'source')
+    print(type_dict)
+    print(source_dict)
+    
+    # Get 
+
+    #one_hotted_dict = {
+    #    status_id: get_crude_sentence_vector(sentence, vocab_dict) for (status_id, sentence) in tokens_df.items()
+    #}
+    #print(one_hotted_dict)
+    
+create_samples()
