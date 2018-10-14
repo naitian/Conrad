@@ -7,13 +7,14 @@ from collections import OrderedDict
 
 import pandas as pd
 import numpy as np
+import gensim
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
-from sklearn.feature_extraction import DictVectorizer
 
 from preprocess import pipe, get_stopwords
 
 
 VOCAB_SIZE = 28648
+CORPUS_SIZE = 178843
 
 
 def get_pandas_df(all_csv=True):
@@ -46,6 +47,7 @@ def prepare(df, cat=False):
     res['message'] = res['status_message'] + ' ' + res['link_name']
     res = res[res['status_message'].str.len() < 1000]
     res = res[res['num_reactions'] - res['num_likes'] > 11]
+    res = res.reset_index()
     return res
 
 
@@ -121,7 +123,7 @@ def get_crude_sentence_vector(sentence, vocab_dict):
 
 def sentiment(df, use_cached=True):
     if use_cached and os.path.isfile('./cache/_cached_sentiment_dicts.pkl'):
-        with open('./cache/_cached_sentiment_dicts.pkl','rb') as infile:
+        with open('./cache/_cached_sentiment_dicts.pkl', 'rb') as infile:
             sentiment_dicts = pickle.load(infile)
             return sentiment_dicts
     vader = SentimentIntensityAnalyzer()
@@ -132,22 +134,60 @@ def sentiment(df, use_cached=True):
     return sentiment_dicts
 
 
-def create_samples():
-    # Get Facebook posts data frame
-    df = get_pandas_df()
-    df = prepare(df)
+def sentence_vector(df, use_cached=True):
+    if use_cached and os.path.isfile('./cache/_cached_sentence_vectors.pkl'):
+        with open('./cache/_cached_sentence_vectors.pkl', 'rb') as infile:
+            vectors = pickle.load(infile)
+            return vectors
+    model = gensim.models.Doc2Vec.load('doc2vec.model')
+    df['vector'] = df['message'].apply(model.infer_vector)
+    vectors = df.set_index(['status_id'])['vector']
+    with open('./cache/_cached_sentence_vectors.pkl', 'wb') as outfile:
+        pickle.dump(vectors, outfile)
+    return vectors
 
-    # Create one-hot bag of words structure
-    tokens_df = extract_bag_of_words(df)
-    ttf = extract_ttf(tokens_df)
-    ttf = filter_ttf(ttf, threshold=4)
-    vocab_dict = create_vocab_to_idx_map(ttf)
-    print(len(vocab_dict))
 
-    # Get sentiment dictionaries
-    sentiment_dicts = sentiment(df)
+def reaction(df, use_cached=True):
+    if use_cached and os.path.isfile('./cache/_cached_reaction.pkl'):
+        with open('./cache/_cached_reaction.pkl', 'rb') as infile:
+            vectors = pickle.load(infile)
+            return vectors
+    vectors = df[['status_id', 'num_loves', 'num_hahas', 'num_wows', 'num_sads', 'num_angrys']].set_index(['status_id']).T.to_dict('list')
+    with open('./cache/_cached_reaction.pkl', 'wb') as outfile:
+        pickle.dump(vectors, outfile)
+    return vectors
 
-    one_hotted_dict = {
-        status_id: get_crude_sentence_vector(sentence, vocab_dict) for (status_id, sentence) in tokens_df.items()
-    }
-    print(one_hotted_dict)
+
+def create_samples(n, batch_size=50, use_cache=True, prepared=None):
+    """ Returns X, y where X is INPUT_LENx1 input vector and y is OUTPUT_LENx1 output vector
+    Features:
+        - sentence vector
+        - sentiment
+        - source
+        - length
+        - type
+    Output:
+        - hahas
+        - loves
+        - all the other ones
+    """
+    INPUT_LEN = 54
+    OUTPUT_LEN = 5
+    if prepared is None:
+        df = get_pandas_df()
+        df = prepare(df)
+    else:
+        df = prepared
+    s = sentiment(df, use_cache)
+    v = sentence_vector(df, use_cache)
+    r = reaction(df, use_cache)
+
+    X = np.empty([batch_size, INPUT_LEN])
+    y = np.empty([batch_size, OUTPUT_LEN])
+    for i, sid in enumerate(df['status_id'][(n * batch_size): (n + 1) * batch_size]):
+        if not i % (batch_size // 10):
+            print(i)
+        in_vector = np.concatenate((np.array(v[sid]), np.array(list(s[sid].values()))))
+        X[i] = in_vector
+        y[i] = np.array(r[sid], dtype=np.int64)
+    return X, y
