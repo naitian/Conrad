@@ -1,9 +1,6 @@
 import glob
 import os
 import pickle
-import sys
-from time import time
-from collections import OrderedDict
 
 import pandas as pd
 import numpy as np
@@ -11,6 +8,7 @@ import gensim
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
 from preprocess import pipe, get_stopwords
+from sentence_vector import get_vector_from_sentence
 
 
 VOCAB_SIZE = 28648
@@ -140,7 +138,7 @@ def sentence_vector(df, use_cached=True):
             vectors = pickle.load(infile)
             return vectors
     model = gensim.models.Doc2Vec.load('doc2vec.model')
-    df['vector'] = df['message'].apply(model.infer_vector)
+    df['vector'] = df['message'].apply(gensim.utils.simple_preprocess).apply(model.infer_vector)
     vectors = df.set_index(['status_id'])['vector']
     with open('./cache/_cached_sentence_vectors.pkl', 'wb') as outfile:
         pickle.dump(vectors, outfile)
@@ -156,6 +154,15 @@ def reaction(df, use_cached=True):
     with open('./cache/_cached_reaction.pkl', 'wb') as outfile:
         pickle.dump(vectors, outfile)
     return vectors
+
+
+def one_hot(df, key):
+    """ Get one hot encoding for given key
+    :key: column in df to encode
+    """
+    one_hot_encoding_of_key = pd.get_dummies(df[key], drop_first=True).join(df.status_id).set_index('status_id')
+    one_hot_encoding_of_key['onehot'] = one_hot_encoding_of_key.values.tolist()
+    return one_hot_encoding_of_key['onehot'].to_dict()
 
 
 def create_samples(n, batch_size=50, use_cache=True, prepared=None):
@@ -179,6 +186,8 @@ def create_samples(n, batch_size=50, use_cache=True, prepared=None):
     else:
         df = prepared
     s = sentiment(df, use_cache)
+    # type_dict = one_hot(df, 'status_type')
+    # source_dict = one_hot(df, 'source')
     v = sentence_vector(df, use_cache)
     r = reaction(df, use_cache)
 
@@ -189,5 +198,18 @@ def create_samples(n, batch_size=50, use_cache=True, prepared=None):
             print(i)
         in_vector = np.concatenate((np.array(v[sid]), np.array(list(s[sid].values()))))
         X[i] = in_vector
-        y[i] = np.array(r[sid], dtype=np.int64)
+        reaction_array = np.array(r[sid], dtype=np.int64)
+        if np.count_nonzero(reaction_array) == 0:
+            y[i] = np.ones([OUTPUT_LEN])
+        else:
+            y[i] = reaction_array / np.sum(reaction_array)
     return X, y
+
+
+def get_input_vector(sentence):
+    v = np.array(get_vector_from_sentence(sentence))
+    vader = SentimentIntensityAnalyzer()
+    sentiment = np.array(list(vader.polarity_scores(sentence).values()))
+    print(v)
+    print(sentiment)
+    return np.concatenate((v, sentiment))
