@@ -162,7 +162,6 @@ def one_hot(df, key):
     """
     one_hot_encoding_of_key = pd.get_dummies(df[key], drop_first=True).join(df.status_id).set_index('status_id')
     one_hot_encoding_of_key['onehot'] = one_hot_encoding_of_key.values.tolist()
-    return one_hot_encoding_of_key['onehot'].to_dict()
 
 
 def create_samples(n, batch_size=50, use_cache=True, prepared=None):
