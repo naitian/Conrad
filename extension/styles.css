@@ -1,0 +1,24 @@
+.conrad-display-thing {
+    top: 0;
+    position: fixed;
+    left: 0;
+    z-index: 1000000;
+    background-color: white;
+    padding: 10px 15px;
+    border-radius: 100px;
+    box-shadow: 0 0.3px 2px rgba(0, 0, 0, 0.4);
+    vertical-align: middle;
+}
+
+.conrad-display-thing:hover {
+    opacity: 0;
+}
+
+.conrad-display-thing > i {
+    vertical-align: sub;
+}
+
+.conrad-display-thing > span {
+    font-size: 14px;
+    color: gray;
+}
