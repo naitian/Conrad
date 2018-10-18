@@ -19,8 +19,8 @@ function generate_display(res) {
   let tpl = `
     <i class="_3j7m _2p78 _9-- _hly"></i> <span>${res.love} </span>
     <i class="_3j7o _2p78 _9-- _hly"></i> <span>${res.haha} </span>
-    <i class="_3j7r _2p78 _9-- _hly"></i> <span>${res.wow} </span>
-    <i class="_3j7n _2p78 _9-- _hly"></i> <span>${res.sad} </span>
+    <i class="_3j7r _2p78 _9-- _hly"></i> <span>${res.sad} </span>
+    <i class="_3j7n _2p78 _9-- _hly"></i> <span>${res.wow} </span>
     <i class="_3j7q _2p78 _9-- _hly"></i> <span>${res.angry} </span>
     `
   return tpl;
@@ -40,23 +40,24 @@ window.onkeypress = _.debounce(function() {
     div = display_thing;
     div.innerHTML = '';
   }
+
+  if (!active.isContentEditable) {
+    div.parentNode.removeChild(div);
+    return;
+  }
   if (text.length > 0) {
     // Make ajax call
     // pretend like there's a response rn lol.
-    console.log('hellooo');
-    const res = {
-      'love': 3,
-      'haha': 5,
-      'wow': 2,
-      'sad': 6,
-      'angry': 2
-    };
-
-    div.innerHTML = generate_display(res);
-    x = active.getBoundingClientRect().left;
-    y = active.getBoundingClientRect().bottom + 10;
-    div.style.left = `${x}px`;
-    div.style.top = `${y}px`;
-    document.body.appendChild(div);
+    console.log(text);
+    chrome.runtime.sendMessage({sentence: text}, function(req) {
+          console.log(req);
+          const res = req;
+          div.innerHTML = generate_display(res);
+          x = active.getBoundingClientRect().left;
+          y = active.getBoundingClientRect().bottom + 10;
+          div.style.left = `${x}px`;
+          div.style.top = `${y}px`;
+          document.body.appendChild(div);
+    });
   }
 }, 400)
